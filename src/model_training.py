@@ -11,7 +11,7 @@ from utils.logger import get_logger
 
 # Retrieve logger configured with file and console handlers
 logger = get_logger(__name__)
-
+   
 
 class ModelTrainingStrategy(ABC):
     """
@@ -520,4 +520,4 @@ def create_trainer_from_config(config_path: Optional[str] = None) -> ModelTraine
         return ModelTrainer(strategy=strategy)
     except Exception as e:
         logger.warning(f"Failed to load config from {config_path}, falling back to default trainer: {e}")
-        return create_default_trainer()
+        return create_default_trainer()

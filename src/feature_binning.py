@@ -24,7 +24,7 @@ class FeatureBinningStrategy(ABC):
         """Initialize with SparkSession."""
         self.spark = spark or get_or_create_spark_session()
     
-    @abstractmethod
+    @abstractmethod 
     def bin_feature(self, df: DataFrame, column: str) -> DataFrame:
         """
         Bin a feature column.
