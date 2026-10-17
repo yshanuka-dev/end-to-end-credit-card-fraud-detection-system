@@ -55,8 +55,7 @@ class NativeKafkaConfig:
                 'auto.offset.reset': 'earliest',
                 'enable.auto.commit': True,
                 'auto.commit.interval.ms': 1000,
-                'session.timeout.ms': 30000,
-                'max.poll.records': 500
+                'session.timeout.ms': 30000
                 }
 
 
@@ -79,33 +78,43 @@ class NativeKafkaValidator:
                 }
         
         try:
+            import platform
+            is_windows = platform.system().lower() == 'windows'
+            script_ext = '.bat' if is_windows else '.sh'
+            bin_subpath = os.path.join('bin', 'windows') if is_windows else 'bin'
+            path_sep = ';' if is_windows else ':'
+
             # Check KAFKA_HOME environment variable
             kafka_home = os.environ.get('KAFKA_HOME')
             if kafka_home:
                 result['kafka_home_set'] = True
                 logger.info(f"KAFKA_HOME found: {kafka_home}")
+                kafka_bin_path = os.path.join(kafka_home, bin_subpath)
+                current_path = os.environ.get('PATH', '')
+                if kafka_bin_path not in current_path:
+                    os.environ['PATH'] = f"{kafka_bin_path}{path_sep}{current_path}"
             else:
                 # Try to detect Kafka installation automatically
                 common_kafka_paths = [
-                                    '/opt/homebrew/opt/kafka/libexec',  # Homebrew on Apple Silicon
-                                    '/usr/local/opt/kafka/libexec',    # Homebrew on Intel
-                                    '/opt/kafka',                       # Common Linux path
-                                    '/usr/local/kafka',                 # Alternative Linux path
-                                    ]
+                    'C:\\kafka_2.12-3.7.0',
+                    'C:/kafka_2.12-3.7.0',
+                    '/opt/homebrew/opt/kafka/libexec',  # Homebrew on Apple Silicon
+                    '/usr/local/opt/kafka/libexec',    # Homebrew on Intel
+                    '/opt/kafka',                       # Common Linux path
+                    '/usr/local/kafka',                 # Alternative Linux path
+                ]
                 
-                import platform
-                script_ext = '.bat' if platform.system().lower() == 'windows' else '.sh'
                 for path in common_kafka_paths:
-                    if os.path.exists(os.path.join(path, 'bin', f'kafka-topics{script_ext}')):
+                    if os.path.exists(os.path.join(path, bin_subpath, f'kafka-topics{script_ext}')):
                         result['kafka_home_set'] = True
                         logger.info(f"Kafka installation detected at: {path}")
                         # Set KAFKA_HOME for this session
                         os.environ['KAFKA_HOME'] = path
                         # Add Kafka bin to PATH for this session
-                        kafka_bin_path = os.path.join(path, 'bin')
+                        kafka_bin_path = os.path.join(path, bin_subpath)
                         current_path = os.environ.get('PATH', '')
                         if kafka_bin_path not in current_path:
-                            os.environ['PATH'] = f"{kafka_bin_path}:{current_path}"
+                            os.environ['PATH'] = f"{kafka_bin_path}{path_sep}{current_path}"
                             logger.info(f"Added Kafka bin to PATH: {kafka_bin_path}")
                         break
                 
@@ -139,7 +148,7 @@ class NativeKafkaValidator:
         return result
     
     @staticmethod
-    def check_kafka_connection(bootstrap_servers: str = "localhost:9092") -> bool:
+    def check_kafka_connection(bootstrap_servers: str = "127.0.0.1:9092") -> bool:
         """
         Check if native Kafka broker is running and accessible
         
@@ -524,13 +533,16 @@ class NativeKafkaConsumer:
                 
                 try:
                     message_data = json.loads(msg.value().decode('utf-8'))
-                    data = message_data.get('data', {})
+                    if isinstance(message_data, dict) and 'data' in message_data:
+                        data = message_data.get('data', {})
+                    else:
+                        data = message_data if isinstance(message_data, dict) else {'value': message_data}
                     
                     # Add Kafka metadata
                     data['_kafka_topic'] = msg.topic()
                     data['_kafka_partition'] = msg.partition()
                     data['_kafka_offset'] = msg.offset()
-                    data['_kafka_timestamp'] = message_data.get('timestamp')
+                    data['_kafka_timestamp'] = message_data.get('timestamp') if isinstance(message_data, dict) else None
                     
                     messages.append(data)
                     count += 1

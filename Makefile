@@ -26,7 +26,7 @@ ifeq ($(OS),Windows_NT)
   VENV_PYTHON = $(VENV_DIR)/Scripts/python.exe
   VENV_MLFLOW = $(VENV_DIR)/Scripts/mlflow.exe
   VENV_AIRFLOW = $(VENV_DIR)/Scripts/airflow.exe
-  KAFKA_HOME ?= C:\kafka_2.12-3.7.0
+  KAFKA_HOME ?= C:/kafka_2.12-3.7.0
   KAFKA_BIN_DIR = $(KAFKA_HOME)/bin/windows/
   KAFKA_SCRIPT_EXT = .bat
   KAFKA_CONFIG_FILE ?= $(ROOT_DIR)kafka/server.properties

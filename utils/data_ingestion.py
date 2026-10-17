@@ -89,7 +89,7 @@ class DataIngestor(ABC):
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, LongType, IntegerType
 
 FRAUD_DATASET_SCHEMA = StructType([
-    StructField("_c0", IntegerType(), True),
+    StructField("", IntegerType(), True),
     StructField("trans_date_trans_time", StringType(), True),
     StructField("cc_num", LongType(), True),
     StructField("merchant", StringType(), True),
@@ -144,6 +144,8 @@ class DataIngestorCSV(DataIngestor):
             
             schema_to_use = options.pop("schema", FRAUD_DATASET_SCHEMA)
             df = self.spark.read.schema(schema_to_use).options(**csv_options).csv(file_path_or_link)
+            if "" in df.columns:
+                df = df.withColumnRenamed("", "_c0")
             
             logger.info(f"✓ CSV data loaded successfully")
             logger.info(f"  • Rows: {df.count()}")

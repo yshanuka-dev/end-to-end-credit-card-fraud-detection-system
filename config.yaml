@@ -211,7 +211,7 @@ mlflow:
   model_registry_name: "credit_card_fraud_prediction"
   artifact_path: "model"
   run_name_prefix: "fraud_run"
-  artifact_location: "s3://credit-card-fraud-data-bucket/mlflow-artifacts"
+  artifact_location: "s3://credit-card-data-demo/mlflow-artifacts"
   tags:
     project: "credit_card_fraud_detection"
     team: "ml_engineering"
@@ -229,7 +229,7 @@ pipeline:
   enable_cache: false
 
 kafka:
-  bootstrap_servers: "localhost:9092"
+  bootstrap_servers: "127.0.0.1:9092"
   topics:
     raw_transactions: "raw_transactions"
     fraud_predictions: "fraud_predictions"
@@ -238,6 +238,6 @@ kafka:
 # AWS S3 Configuration - STUDENTS: Replace with your AWS settings
 aws:
   region: "ap-south-1"  # REQUIRED: Change this to your AWS region (e.g., us-east-1, eu-west-1)
-  s3_bucket: "credit-card-fraud-data-bucket"  # REQUIRED: Change this to your unique S3 bucket name
-  s3_kms_key_arn: ""  # OPTIONAL: Your KMS key ARN
+  s3_bucket: "credit-card-data-demo"  # REQUIRED: Change this to your unique S3 bucket name
+  s3_kms_key_arn: "arn:aws:kms:ap-south-1:142899891442:key/a634cebf-9f86-4faf-840a-900d90fc2544"  # OPTIONAL: Your KMS key ARN
   force_s3_io: true  # Save and upload all artifacts to AWS S3

@@ -104,7 +104,7 @@ def get_s3_client():
     config = botocore.config.Config(
         retries={"max_attempts": 5, "mode": "standard"},
         connect_timeout=5,
-        read_timeout=30
+        read_timeout=70
     )
     return boto3.client('s3', region_name=region, config=config)
 
