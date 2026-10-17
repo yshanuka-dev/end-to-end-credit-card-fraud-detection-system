@@ -32,9 +32,13 @@ class MLKafkaConsumer:
     def __init__(self):
         self.model = None
         self.config = load_config()
+        self.model_path = None
+        self.last_model_mtime = 0.0
+        self.encoders_dir = "artifacts/encode"
         
-        # Load Kafka topics
+        # Load Kafka configuration
         kafka_config = self.config.get('kafka', {})
+        self.bootstrap_servers = kafka_config.get('bootstrap_servers', '127.0.0.1:9092')
         topics = kafka_config.get('topics', {})
         self.input_topic = topics.get('raw_transactions', 'raw_transactions')
         self.output_topic = topics.get('fraud_predictions', 'fraud_predictions')
@@ -43,19 +47,55 @@ class MLKafkaConsumer:
         """Initialize ML model"""
         try:
             model_cfg = self.config.get('model', {})
-            model_path = model_cfg.get('model_path', 'artifacts/models/xgboost_tuned_model.pkl')
-            self.model = ModelInference(model_path=model_path, use_spark=False)
+            self.model_path = model_cfg.get('model_path', 'artifacts/models/xgboost_tuned_model.pkl')
+            self.model = ModelInference(model_path=self.model_path, use_spark=False)
+            
+            # Record initial modification time (model + metadata)
+            if os.path.exists(self.model_path):
+                self.last_model_mtime = os.path.getmtime(self.model_path)
+                metadata_path = self.model_path.replace('.pkl', '_metadata.json')
+                if os.path.exists(metadata_path):
+                    self.last_model_mtime = max(self.last_model_mtime, os.path.getmtime(metadata_path))
             
             # Load encoders
-            encoders_dir = "artifacts/encode"
-            if os.path.exists(encoders_dir):
-                self.model.load_encoders(encoders_dir)
+            if os.path.exists(self.encoders_dir):
+                self.model.load_encoders(self.encoders_dir)
                 logger.info("✅ ML model and encoders loaded successfully")
             
             return True
         except Exception as e:
             logger.error(f"❌ Initialization failed: {str(e)}")
             return False
+
+    def check_and_reload_model(self) -> bool:
+        """Check if model or metadata was updated on disk (e.g., by Airflow retraining) and hot-reload."""
+        if not self.model_path or not os.path.exists(self.model_path):
+            return False
+        try:
+            current_mtime = os.path.getmtime(self.model_path)
+            metadata_path = self.model_path.replace('.pkl', '_metadata.json')
+            if os.path.exists(metadata_path):
+                current_mtime = max(current_mtime, os.path.getmtime(metadata_path))
+                
+            if current_mtime > self.last_model_mtime:
+                logger.info(f"\n{'='*75}")
+                logger.info("🔄 [HOT-RELOAD] New model detected on disk (trained by Airflow/pipeline)!")
+                logger.info("   Reloading model and tuned thresholds into memory with zero downtime...")
+                logger.info(f"{'='*75}")
+                
+                new_model = ModelInference(model_path=self.model_path, use_spark=False)
+                if os.path.exists(self.encoders_dir):
+                    new_model.load_encoders(self.encoders_dir)
+                    
+                # In-memory swap
+                self.model = new_model
+                self.last_model_mtime = current_mtime
+                logger.info("✅ [HOT-RELOAD] Active model successfully updated to latest version!")
+                logger.info(f"{'='*75}\n")
+                return True
+        except Exception as e:
+            logger.warning(f"⚠️ Model hot-reload check encountered error: {e}")
+        return False
     
     def extract_transaction_data(self, message_data: Dict[str, Any]) -> Dict[str, Any]:
         """Extract and validate transaction data"""
@@ -80,12 +120,14 @@ class MLKafkaConsumer:
     def process_batch(self, max_messages: int = 1000, timeout: int = 10, 
                      group_id: str = None) -> int:
         """Process batch of messages with ML predictions"""
+        # Hot-reload model if Airflow or retrain pipeline updated artifacts on disk
+        self.check_and_reload_model()
         
         if group_id is None:
             group_id = f"batch_consumer_{int(time.time())}"
         
         consumer_config = {
-            'bootstrap.servers': 'localhost:9092',
+            'bootstrap.servers': self.bootstrap_servers,
             'group.id': group_id,
             'auto.offset.reset': 'earliest' if 'batch_' in group_id else 'latest',
             'enable.auto.commit': True
