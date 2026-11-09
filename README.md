@@ -36,7 +36,7 @@ flowchart LR
 
 The default training path uses **scikit-learn + XGBoost**. `config.yaml` also supports a **PySpark MLlib** training path (`model.framework: pyspark`).
 
-## Project structure
+## Project structure 
 
 ```
 ├── config.yaml              # Paths, columns, preprocessing, training, MLflow
