@@ -4,7 +4,7 @@ A production-oriented machine learning project for detecting fraudulent credit c
 
 ## Overview
 
-The system predicts whether a transaction is fraudulent (`is_fraud`) using engineered features such as amount, merchant category, velocity, location mismatch, and binned age/distance/hour fields. Configuration is centralized in `config.yaml`; runnable entry points live under `pipelines/` and `dags/`.
+The system predicts whether a transaction is fraudulent (`is_fraud`) using engineered features such as amount, merchant category, velocity, location mismatch, and binned age/distance/hour fields. Configuration is centralized in `config.yaml`; runnable entry points live under `pipelines/` and `dags/`. 
 
 **High-level flow**
 
